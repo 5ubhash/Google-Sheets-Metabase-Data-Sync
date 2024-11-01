@@ -1,0 +1,51 @@
+// Global variables
+const METABASE_URL = 'https://your-metabase-instance/api';
+const USERNAME = 'your-username';
+const PASSWORD = 'your-password';
+
+function authenticate() {
+  const response = UrlFetchApp.fetch(`${METABASE_URL}/session`, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({
+      username: USERNAME,
+      password: PASSWORD
+    })
+  });
+  const json = JSON.parse(response.getContentText());
+  return json.id; // This returns the session ID
+}
+
+function fetchData(queryId) {
+  const sessionId = authenticate();
+
+  const response = UrlFetchApp.fetch(`${METABASE_URL}/card/${queryId}/query`, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'X-Metabase-Session': sessionId
+    },
+    payload: JSON.stringify({ type: 'query' }) // Adjust payload as needed
+  });
+
+  const json = JSON.parse(response.getContentText());
+  return json.rows; // Assuming the response contains rows
+}
+
+function importMetabaseData() {
+  const queryId = Browser.inputBox('Enter Metabase Query ID:');
+  const data = fetchData(queryId);
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  sheet.clear(); // Clear existing data
+  sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+}
+
+//Step 4: Create a Menu in Google Sheets
+//To make your function accessible from the Google Sheets UI:
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Metabase')
+    .addItem('Import Data', 'importMetabaseData')
+    .addToUi();
+}
